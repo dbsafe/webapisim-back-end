@@ -1,6 +1,5 @@
 ﻿using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
@@ -13,6 +12,14 @@ namespace WebApiSim.Api
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddMvc();
+                //.AddJsonOptions(o =>
+                //{
+                //    if (o.SerializerSettings.ContractResolver != null)
+                //    {
+                //        var castedResolver = o.SerializerSettings.ContractResolver as Newtonsoft.Json.Serialization.DefaultContractResolver;
+                //        castedResolver.NamingStrategy = null; // manipulate json serializer setting to use uppercase for prop names.
+                //    }
+                //});
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
