@@ -1,15 +1,27 @@
 ﻿using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
+using NLog.Extensions.Logging;
 using Swashbuckle.AspNetCore.Swagger;
 
 namespace WebApiSim.Api
 {
     public class Startup
     {
+        private readonly ILogger _logger;
+        public IConfiguration Configuration { get; }
+
+        public Startup(IConfiguration configuration, ILogger<Startup> logger)
+        {
+            Configuration = configuration;
+            _logger = logger;
+        }
+
+
         // This method gets called by the runtime. Use this method to add services to the container.
         // For more information on how to configure your application, visit https://go.microsoft.com/fwlink/?LinkID=398940
         public void ConfigureServices(IServiceCollection services)
@@ -38,7 +50,32 @@ namespace WebApiSim.Api
         public void Configure(IApplicationBuilder app, IHostingEnvironment env, ILoggerFactory loggerFactory)
         {
             loggerFactory.AddConsole();
+            loggerFactory.AddNLog();
 
+
+            if (env.IsDevelopment())
+            {
+                _logger.LogInformation("In Development environment");
+                app.UseDeveloperExceptionPage();
+            }
+            else
+            {
+                app.UseExceptionHandler();
+            }
+
+
+            ConfigureSwagerUi(app);
+
+            app.UseMvc();
+
+            //app.Run(async (context) =>
+            //{
+            //    await context.Response.WriteAsync("Hello World!");
+            //});
+        }
+
+        private void ConfigureSwagerUi(IApplicationBuilder app)
+        {
             // Enable middleware to serve generated Swagger as a JSON endpoint.
             app.UseSwagger();
             // Enable middleware to serve swagger-ui (HTML, JS, CSS, etc.), 
@@ -48,22 +85,6 @@ namespace WebApiSim.Api
                 c.SwaggerEndpoint("/swagger/v1/swagger.json", "WebApiSim V1");
                 c.RoutePrefix = string.Empty;
             });
-
-            if (env.IsDevelopment())
-            {
-                app.UseDeveloperExceptionPage();
-            }
-            else
-            {
-                app.UseExceptionHandler();
-            }
-
-            app.UseMvc();
-
-            //app.Run(async (context) =>
-            //{
-            //    await context.Response.WriteAsync("Hello World!");
-            //});
         }
     }
 }
