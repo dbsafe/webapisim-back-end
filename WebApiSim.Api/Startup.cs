@@ -7,6 +7,7 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
 using NLog.Extensions.Logging;
 using Swashbuckle.AspNetCore.Swagger;
+using WebApiSim.Api.LoggingMiddleware;
 using WebApiSim.Api.SimManager;
 
 namespace WebApiSim.Api
@@ -52,9 +53,9 @@ namespace WebApiSim.Api
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
         public void Configure(IApplicationBuilder app, IHostingEnvironment env, ILoggerFactory loggerFactory)
         {
-            loggerFactory.AddConsole();
             loggerFactory.AddNLog();
 
+            app.UseRequestResponseLogging();
 
             if (env.IsDevelopment())
             {
