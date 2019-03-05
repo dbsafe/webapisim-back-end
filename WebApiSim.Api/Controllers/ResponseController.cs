@@ -1,6 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
-using WebApiSim.Api.Contracts;
 using WebApiSim.Api.SimManager;
 
 namespace WebApiSim.Api.Controllers
@@ -9,9 +8,12 @@ namespace WebApiSim.Api.Controllers
     [ApiController]
     public class ResponseController : AppSimController<ResponseController>
     {
-        public ResponseController(ILogger<ResponseController> logger)
+        private IResponseService _responseService;
+
+        public ResponseController(ILogger<ResponseController> logger, IResponseService responseService)
             : base(logger)
         {
+            _responseService = responseService;
         }
 
         [HttpPost("addResponses")]
@@ -19,21 +21,26 @@ namespace WebApiSim.Api.Controllers
         {
             return Execute(() =>
             {
-                // throw new Exception("error");
-                return ApiResponse.CreateSucceed();
+                return _responseService.AddResponses(request.ApplicationId, request.Responses);
             });
         }
 
         [HttpPost("responsesByApplicationId")]
         public IActionResult Select([FromBody] SelectResponsesByApplicationIdRequest request)
         {
-            return Ok(new SimResponse[0]);
+            return Execute(() =>
+            {
+                return _responseService.SelectResponsesByApplicationId(request.ApplicationId);
+            });
         }
 
         [HttpPost("clearResponses")]
-        public ActionResult Clear([FromBody] ClearResponsesRequest request)
+        public IActionResult Clear([FromBody] ClearResponsesRequest request)
         {
-            return Ok();
+            return Execute(() =>
+            {
+                return _responseService.ClearResponsesByApplicationId(request.ApplicationId);
+            });
         }
     }
 }

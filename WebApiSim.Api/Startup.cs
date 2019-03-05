@@ -7,6 +7,7 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
 using NLog.Extensions.Logging;
 using Swashbuckle.AspNetCore.Swagger;
+using WebApiSim.Api.SimManager;
 
 namespace WebApiSim.Api
 {
@@ -20,7 +21,6 @@ namespace WebApiSim.Api
             Configuration = configuration;
             _logger = logger;
         }
-
 
         // This method gets called by the runtime. Use this method to add services to the container.
         // For more information on how to configure your application, visit https://go.microsoft.com/fwlink/?LinkID=398940
@@ -44,6 +44,9 @@ namespace WebApiSim.Api
             {
                 c.SwaggerDoc("v1", new Info { Title = "WebApiSim", Version = "v1" });
             });
+
+
+            ConfigureDependencyInjection(services);
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -86,6 +89,13 @@ namespace WebApiSim.Api
                 c.SwaggerEndpoint("/swagger/v1/swagger.json", "WebApiSim V1");
                 c.RoutePrefix = string.Empty;
             });
+        }
+
+        private void ConfigureDependencyInjection(IServiceCollection services)
+        {
+            var applicationStorage = new ApplicationStorage();
+            services.AddSingleton<IApplicationService>(applicationStorage);
+            services.AddSingleton<IResponseService>(applicationStorage);
         }
     }
 }

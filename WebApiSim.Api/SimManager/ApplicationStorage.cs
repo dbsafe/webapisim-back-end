@@ -29,15 +29,20 @@ namespace WebApiSim.Api.SimManager
     {
     }
 
-    public interface IApplicationStorage
+    public interface IResponseService
     {
         ApiResponse AddResponses(string applicationId, IEnumerable<SimResponse> responses);
         ApiResponse<IEnumerable<SimResponse>> SelectResponsesByApplicationId(string applicationId);
-        ApiResponse ClearResponsesApplicationId(string applicationId);
+        ApiResponse ClearResponsesByApplicationId(string applicationId);
     }
 
+    public interface IApplicationService
+    {
+        ApiResponse Clear();
+        ApiResponse<IEnumerable<string>> SelectApplicationIds();
+    }
 
-    public class ApplicationStorage : IApplicationStorage
+    public class ApplicationStorage : IResponseService, IApplicationService
     {
         private readonly object _lock = new object();
         private readonly Dictionary<string, Application> _applications = new Dictionary<string, Application>();
@@ -49,7 +54,34 @@ namespace WebApiSim.Api.SimManager
             return ApiResponse.CreateSucceed();
         }
 
-        public ApiResponse ClearResponsesApplicationId(string applicationId)
+        #region IApplicationStore
+
+        public ApiResponse Clear()
+        {
+            lock (_lock)
+            {
+                _applications.Clear();
+            }
+
+            return ApiResponse.CreateSucceed();
+        }
+
+        public ApiResponse<IEnumerable<string>> SelectApplicationIds()
+        {
+            IEnumerable<string> applications;
+            lock (_lock)
+            {
+                applications = _applications.Keys.ToArray();
+            }
+
+            return ApiResponse<IEnumerable<string>>.CreateSucceed(applications);
+        }
+
+        #endregion
+
+        #region IResponseService
+
+        public ApiResponse ClearResponsesByApplicationId(string applicationId)
         {
             Application application;
             bool applicationFound = false;
@@ -99,6 +131,8 @@ namespace WebApiSim.Api.SimManager
 
             return application;
         }
+
+        #endregion
     }
 
     public class Application
@@ -165,7 +199,7 @@ namespace WebApiSim.Api.SimManager
 
     public class SimResponse
     {
-        public Guid Id { get; set; }
+        public Guid ResponseId { get; set; }
         public object Body { get; set; }
         public string HttpCode { get; set; }
         public KeyValuePair<string, string> Headers { get; set; }
@@ -173,8 +207,9 @@ namespace WebApiSim.Api.SimManager
 
     public class SimRule
     {
+        public Guid RuleId { get; set; }
         public string Method { get; set; }
         public string Header { get; set; }
-        public string Body { get; set; }
+        public object Body { get; set; }
     }
 }
