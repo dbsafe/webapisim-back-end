@@ -1,4 +1,6 @@
-﻿namespace WebApiSim.Api.Contracts
+﻿using System.ComponentModel.DataAnnotations;
+
+namespace WebApiSim.Api.Contracts
 {
     public enum ApiResponseType
     {
