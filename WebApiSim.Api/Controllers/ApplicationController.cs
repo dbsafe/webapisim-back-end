@@ -16,7 +16,7 @@ namespace WebApiSim.Api.Controllers
             _applicationService = applicationService;
         }
 
-        [HttpPost("applicationIds")]
+        [HttpGet("applicationIds")]
         public IActionResult Select()
         {
             return Execute(() =>
