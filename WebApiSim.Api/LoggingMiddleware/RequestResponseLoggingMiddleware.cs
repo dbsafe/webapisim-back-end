@@ -1,8 +1,7 @@
 ﻿using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Http.Internal;
+using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.Extensions.Logging;
-using System;
 using System.IO;
 using System.Text;
 using System.Threading.Tasks;
@@ -22,8 +21,7 @@ namespace WebApiSim.Api.LoggingMiddleware
         private readonly RequestDelegate _next;
         private readonly ILogger _logger;
 
-        public RequestResponseLoggingMiddleware(RequestDelegate next,
-                                                ILoggerFactory loggerFactory)
+        public RequestResponseLoggingMiddleware(RequestDelegate next, ILoggerFactory loggerFactory)
         {
             _next = next;
             _logger = loggerFactory
@@ -35,7 +33,6 @@ namespace WebApiSim.Api.LoggingMiddleware
             _logger.LogInformation(await FormatRequest(context.Request));
 
             var originalBodyStream = context.Response.Body;
-
             using (var responseBody = new MemoryStream())
             {
                 context.Response.Body = responseBody;
@@ -49,24 +46,40 @@ namespace WebApiSim.Api.LoggingMiddleware
 
         private async Task<string> FormatRequest(HttpRequest request)
         {
-            var body = request.Body;
-            request.EnableRewind();
+            var bodyStream = new MemoryStream();
+            await request.Body.CopyToAsync(bodyStream);
+            bodyStream.Seek(0, SeekOrigin.Begin);
+            var bodyText = new StreamReader(bodyStream).ReadToEnd();
+            bodyStream.Seek(0, SeekOrigin.Begin);
 
-            var buffer = new byte[Convert.ToInt32(request.ContentLength)];
-            await request.Body.ReadAsync(buffer, 0, buffer.Length);
-            var bodyAsText = Encoding.UTF8.GetString(buffer);
-            request.Body = body;
+            request.Body.Dispose();
+            request.Body = bodyStream;
 
-            return $"{request.Scheme} {request.Host}{request.Path} {request.QueryString} {bodyAsText}";
+            var url = UriHelper.GetDisplayUrl(request);
+            var headers = GetDisplayHeaders(request.Headers);
+            return $"REQUEST\nMETHOD: {request.Method}\nURL: {url}\nHEADERS:\n{headers}\nBODY: {bodyText}";
         }
 
         private async Task<string> FormatResponse(HttpResponse response)
         {
             response.Body.Seek(0, SeekOrigin.Begin);
-            var text = await new StreamReader(response.Body).ReadToEndAsync();
+            var bodyText = await new StreamReader(response.Body).ReadToEndAsync();
             response.Body.Seek(0, SeekOrigin.Begin);
 
-            return $"Response {text}";
+            var headers = GetDisplayHeaders(response.Headers);
+            return $"RESPONSE\nHEADERS:\n{headers}\nBODY: {bodyText}";
+        }
+
+        private string GetDisplayHeaders(IHeaderDictionary headers)
+        {
+            var sb = new StringBuilder();
+
+            foreach (var header in headers)
+            {
+                sb.AppendLine($"{header.Key}:{header.Value}");
+            }
+
+            return sb.ToString();
         }
     }
 }
