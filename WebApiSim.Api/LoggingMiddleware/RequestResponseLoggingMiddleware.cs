@@ -67,7 +67,7 @@ namespace WebApiSim.Api.LoggingMiddleware
             response.Body.Seek(0, SeekOrigin.Begin);
 
             var headers = GetDisplayHeaders(response.Headers);
-            return $"RESPONSE\nHEADERS:\n{headers}\nBODY: {bodyText}";
+            return $"RESPONSE\nSTATUS CODE:{response.StatusCode}\nHEADERS:\n{headers}\nBODY: {bodyText}";
         }
 
         private string GetDisplayHeaders(IHeaderDictionary headers)

@@ -4,7 +4,7 @@ using WebApiSim.Api.SimManager;
 
 namespace WebApiSim.Api.Controllers
 {
-    [Route("api/responses")]
+    [Route("api/response")]
     [ApiController]
     public class ResponseController : AppSimController<ResponseController>
     {
@@ -16,7 +16,7 @@ namespace WebApiSim.Api.Controllers
             _responseService = responseService;
         }
 
-        [HttpPost("addResponses")]
+        [HttpPost("add")]
         public IActionResult Add([FromBody] AddResponsesRequest request)
         {
             return Execute(() =>
@@ -34,7 +34,7 @@ namespace WebApiSim.Api.Controllers
             });
         }
 
-        [HttpPost("clearResponses")]
+        [HttpPost("clear")]
         public IActionResult Clear([FromBody] ClearResponsesRequest request)
         {
             return Execute(() =>
