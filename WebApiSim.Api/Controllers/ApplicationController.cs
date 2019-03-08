@@ -19,19 +19,13 @@ namespace WebApiSim.Api.Controllers
         [HttpGet("applicationIds")]
         public IActionResult Select()
         {
-            return Execute(() =>
-            {
-                return _applicationService.SelectApplicationIds();
-            });
+            return Execute(() => _applicationService.SelectApplicationIds());
         }
 
         [HttpPost("clear")]
         public IActionResult Clear()
         {
-            return Execute(() =>
-            {
-                return _applicationService.Clear();
-            });
+            return Execute(() => _applicationService.Clear());
         }
     }
 }

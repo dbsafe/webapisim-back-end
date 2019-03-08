@@ -6,6 +6,14 @@ using WebApiSim.Api.Contracts;
 
 namespace WebApiSim.Api.SimManager
 {
+    #region IApplicationService
+
+    public interface IApplicationService
+    {
+        ApiResponse Clear();
+        ApiResponse<IEnumerable<string>> SelectApplicationIds();
+    }
+
     public class ApplicationRequest
     {
         [Required]
@@ -14,45 +22,52 @@ namespace WebApiSim.Api.SimManager
         public string ApplicationId { get; set; }
     }
 
+    #endregion
+
+    #region IResponseService
+
+    public interface IResponseService
+    {
+        ApiResponse AddResponses(AddResponsesRequest request);
+        ApiResponse<IEnumerable<SimResponse>> SelectResponsesByApplicationId(SelectResponsesByApplicationIdRequest request);
+        ApiResponse ClearResponsesByApplicationId(ClearResponsesRequest request);
+    }
+
     public class AddResponsesRequest : ApplicationRequest
     {
         [Required]
         public SimResponse[] Responses { get; set; }
     }
 
-    public class SelectResponsesByApplicationIdRequest : ApplicationRequest
+    public class SelectResponsesByApplicationIdRequest : ApplicationRequest { }
+    public class ClearResponsesRequest : ApplicationRequest { }
+
+    #endregion
+
+    #region IRuleService
+
+    public interface IRuleService
     {
+        ApiResponse AddRules(AddRulesRequest request);
+        ApiResponse<IEnumerable<SimRule>> SelectRulesByApplicationId(SelectRulesByApplicationIdRequest request);
+        ApiResponse ClearRulesByApplicationId(ClearRulesByApplicationIdRequest request);
     }
 
-
-    public class ClearResponsesRequest : ApplicationRequest
+    public class AddRulesRequest : ApplicationRequest
     {
+        [Required]
+        public SimRule[] Rules { get; set; }
     }
 
-    public interface IResponseService
-    {
-        ApiResponse AddResponses(string applicationId, IEnumerable<SimResponse> responses);
-        ApiResponse<IEnumerable<SimResponse>> SelectResponsesByApplicationId(string applicationId);
-        ApiResponse ClearResponsesByApplicationId(string applicationId);
-    }
+    public class SelectRulesByApplicationIdRequest : ApplicationRequest { }
+    public class ClearRulesByApplicationIdRequest : ApplicationRequest { }
 
-    public interface IApplicationService
-    {
-        ApiResponse Clear();
-        ApiResponse<IEnumerable<string>> SelectApplicationIds();
-    }
+    #endregion
 
     public class ApplicationStorage : IResponseService, IApplicationService
     {
         private readonly object _lock = new object();
         private readonly Dictionary<string, Application> _applications = new Dictionary<string, Application>();
-
-        public ApiResponse AddResponses(string applicationId, IEnumerable<SimResponse> responses)
-        {
-            var application = GetOrCreateApplication(applicationId);
-            application.AddResponses(responses);
-            return ApiResponse.CreateSucceed();
-        }
 
         #region IApplicationStore
 
@@ -81,13 +96,20 @@ namespace WebApiSim.Api.SimManager
 
         #region IResponseService
 
-        public ApiResponse ClearResponsesByApplicationId(string applicationId)
+        public ApiResponse AddResponses(AddResponsesRequest request)
+        {
+            var application = GetOrCreateApplication(request.ApplicationId);
+            application.AddResponses(request.Responses);
+            return ApiResponse.CreateSucceed();
+        }
+
+        public ApiResponse ClearResponsesByApplicationId(ClearResponsesRequest request)
         {
             Application application;
             bool applicationFound = false;
             lock (_lock)
             {
-                applicationFound = _applications.TryGetValue(applicationId, out application);
+                applicationFound = _applications.TryGetValue(request.ApplicationId, out application);
             }
 
             if (applicationFound)
@@ -98,13 +120,13 @@ namespace WebApiSim.Api.SimManager
             return ApiResponse.CreateSucceed();
         }
 
-        public ApiResponse<IEnumerable<SimResponse>> SelectResponsesByApplicationId(string applicationId)
+        public ApiResponse<IEnumerable<SimResponse>> SelectResponsesByApplicationId(SelectResponsesByApplicationIdRequest request)
         {
             Application application;
             bool applicationFound = false;
             lock (_lock)
             {
-                applicationFound = _applications.TryGetValue(applicationId, out application);
+                applicationFound = _applications.TryGetValue(request.ApplicationId, out application);
             }
 
             if (applicationFound)

@@ -19,28 +19,19 @@ namespace WebApiSim.Api.Controllers
         [HttpPost("add")]
         public IActionResult Add([FromBody] AddResponsesRequest request)
         {
-            return Execute(() =>
-            {
-                return _responseService.AddResponses(request.ApplicationId, request.Responses);
-            });
+            return Execute(() => _responseService.AddResponses(request));
         }
 
         [HttpPost("responsesByApplicationId")]
         public IActionResult Select([FromBody] SelectResponsesByApplicationIdRequest request)
         {
-            return Execute(() =>
-            {
-                return _responseService.SelectResponsesByApplicationId(request.ApplicationId);
-            });
+            return Execute(() => _responseService.SelectResponsesByApplicationId(request));
         }
 
         [HttpPost("clear")]
         public IActionResult Clear([FromBody] ClearResponsesRequest request)
         {
-            return Execute(() =>
-            {
-                return _responseService.ClearResponsesByApplicationId(request.ApplicationId);
-            });
+            return Execute(() => _responseService.ClearResponsesByApplicationId(request));
         }
     }
 }
