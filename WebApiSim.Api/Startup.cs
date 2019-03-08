@@ -94,6 +94,7 @@ namespace WebApiSim.Api
             var applicationStorage = new ApplicationStorage();
             services.AddSingleton<IApplicationService>(applicationStorage);
             services.AddSingleton<IResponseService>(applicationStorage);
+            services.AddSingleton<IRuleService>(applicationStorage);
         }
     }
 }

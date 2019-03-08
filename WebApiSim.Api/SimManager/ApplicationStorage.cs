@@ -64,7 +64,7 @@ namespace WebApiSim.Api.SimManager
 
     #endregion
 
-    public class ApplicationStorage : IResponseService, IApplicationService
+    public class ApplicationStorage : IResponseService, IApplicationService, IRuleService
     {
         private readonly object _lock = new object();
         private readonly Dictionary<string, Application> _applications = new Dictionary<string, Application>();
@@ -98,20 +98,14 @@ namespace WebApiSim.Api.SimManager
 
         public ApiResponse AddResponses(AddResponsesRequest request)
         {
-            var application = GetOrCreateApplication(request.ApplicationId);
+            var application = GetOrCreateApplicationSafe(request.ApplicationId);
             application.AddResponses(request.Responses);
             return ApiResponse.CreateSucceed();
         }
 
         public ApiResponse ClearResponsesByApplicationId(ClearResponsesRequest request)
         {
-            Application application;
-            bool applicationFound = false;
-            lock (_lock)
-            {
-                applicationFound = _applications.TryGetValue(request.ApplicationId, out application);
-            }
-
+            bool applicationFound = TryGetApplicationSafe(request.ApplicationId, out Application application);
             if (applicationFound)
             {
                 application.ClearResponses();
@@ -122,13 +116,7 @@ namespace WebApiSim.Api.SimManager
 
         public ApiResponse<IEnumerable<SimResponse>> SelectResponsesByApplicationId(SelectResponsesByApplicationIdRequest request)
         {
-            Application application;
-            bool applicationFound = false;
-            lock (_lock)
-            {
-                applicationFound = _applications.TryGetValue(request.ApplicationId, out application);
-            }
-
+            bool applicationFound = TryGetApplicationSafe(request.ApplicationId, out Application application);
             if (applicationFound)
             {
                 return ApiResponse<IEnumerable<SimResponse>>.CreateSucceed(application.GetResponses());
@@ -139,7 +127,44 @@ namespace WebApiSim.Api.SimManager
             }
         }
 
-        private Application GetOrCreateApplication(string applicationId)
+        #endregion
+
+        #region IRuleService
+
+        public ApiResponse AddRules(AddRulesRequest request)
+        {
+            var application = GetOrCreateApplicationSafe(request.ApplicationId);
+            application.AddRules(request.Rules);
+            return ApiResponse.CreateSucceed();
+        }
+
+        public ApiResponse<IEnumerable<SimRule>> SelectRulesByApplicationId(SelectRulesByApplicationIdRequest request)
+        {
+            bool applicationFound = TryGetApplicationSafe(request.ApplicationId, out Application application);
+            if (applicationFound)
+            {
+                return ApiResponse<IEnumerable<SimRule>>.CreateSucceed(application.GetRules());
+            }
+            else
+            {
+                return ApiResponse<IEnumerable<SimRule>>.CreateSucceed(new SimRule[0]);
+            }
+        }
+
+        public ApiResponse ClearRulesByApplicationId(ClearRulesByApplicationIdRequest request)
+        {
+            bool applicationFound = TryGetApplicationSafe(request.ApplicationId, out Application application);
+            if (applicationFound)
+            {
+                application.ClearRules();
+            }
+
+            return ApiResponse.CreateSucceed();
+        }
+
+        #endregion
+
+        private Application GetOrCreateApplicationSafe(string applicationId)
         {
             Application application;
             lock (_lock)
@@ -154,7 +179,13 @@ namespace WebApiSim.Api.SimManager
             return application;
         }
 
-        #endregion
+        private bool TryGetApplicationSafe(string applicationId, out Application application)
+        {
+            lock (_lock)
+            {
+                return _applications.TryGetValue(applicationId, out application);
+            }
+        }
     }
 
     public class Application
