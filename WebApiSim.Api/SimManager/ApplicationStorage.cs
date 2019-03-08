@@ -201,7 +201,7 @@ namespace WebApiSim.Api.SimManager
     {
         public Guid ResponseId { get; set; }
         public object Body { get; set; }
-        public string HttpCode { get; set; }
+        public int HttpCode { get; set; }
         public KeyValuePair<string, string[]>[] Headers { get; set; }
     }
 
