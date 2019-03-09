@@ -23,9 +23,9 @@ namespace WebApiSim.Api.Controllers
         }
 
         [HttpPost("rulesByApplicationId")]
-        public IActionResult Select([FromBody] AddRulesRequest request)
+        public IActionResult Select([FromBody] SelectRulesByApplicationIdRequest request)
         {
-            return Execute(() => _ruleService.AddRules(request));
+            return Execute(() => _ruleService.SelectRulesByApplicationId(request));
         }
 
         [HttpPost("clear")]

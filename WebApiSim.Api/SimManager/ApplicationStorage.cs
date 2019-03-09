@@ -134,8 +134,15 @@ namespace WebApiSim.Api.SimManager
         public ApiResponse AddRules(AddRulesRequest request)
         {
             var application = GetOrCreateApplicationSafe(request.ApplicationId);
-            application.AddRules(request.Rules);
-            return ApiResponse.CreateSucceed();
+            var added = application.AddRules(request.Rules, out string message);
+            if (added)
+            {
+                return ApiResponse.CreateSucceed();
+            }
+            else
+            {
+                return ApiResponse.CreateFailed(message);
+            }
         }
 
         public ApiResponse<IEnumerable<SimRule>> SelectRulesByApplicationId(SelectRulesByApplicationIdRequest request)
@@ -191,8 +198,8 @@ namespace WebApiSim.Api.SimManager
     public class Application
     {
         private readonly object _lock = new object();
-        private readonly List<SimResponse> _responses = new List<SimResponse>();
-        private readonly List<SimRule> _rules = new List<SimRule>();
+        private readonly Dictionary<Guid, SimResponse> _responses = new Dictionary<Guid, SimResponse>();
+        private readonly Dictionary<Guid, SimRule> _rules = new Dictionary<Guid, SimRule>();
 
         public string ApplicationId { get; private set; }
 
@@ -205,7 +212,10 @@ namespace WebApiSim.Api.SimManager
         {
             lock (_lock)
             {
-                _responses.AddRange(responses);
+                foreach(var response in responses)
+                {
+                    _responses[response.ResponseId] = response;
+                }
             }
         }
 
@@ -221,16 +231,32 @@ namespace WebApiSim.Api.SimManager
         {
             lock (_lock)
             {
-                return _responses.ToArray();
+                return _responses.Values.ToArray();
             }
         }
 
-        public void AddRules(IEnumerable<SimRule> rules)
+        public bool AddRules(IEnumerable<SimRule> rules, out string message)
         {
             lock (_lock)
             {
-                _rules.AddRange(rules);
+                var responsesNotFound = rules
+                    .Where(a => !_responses.ContainsKey(a.ResponseId))
+                    .Select(a => a.ResponseId)
+                    .ToArray();
+                if (responsesNotFound.Length > 0)
+                {
+                    message = $"One or more responses were not found: {string.Join(',', responsesNotFound)}";
+                    return false;
+                }
+
+                foreach (var rule in rules)
+                {
+                    _rules[rule.RuleId] = rule;
+                }
             }
+
+            message = string.Empty;
+            return true;
         }
 
         public void ClearRules()
@@ -245,7 +271,7 @@ namespace WebApiSim.Api.SimManager
         {
             lock (_lock)
             {
-                return _rules.ToArray();
+                return _rules.Values.ToArray();
             }
         }
     }
@@ -261,8 +287,9 @@ namespace WebApiSim.Api.SimManager
     public class SimRule
     {
         public Guid RuleId { get; set; }
+        public Guid ResponseId { get; set; }
         public string Method { get; set; }
-        public string Header { get; set; }
-        public object Body { get; set; }
+        public KeyValuePair<string, string>? Header { get; set; }
+        public KeyValuePair<string, string>? Property { get; set; }
     }
 }
