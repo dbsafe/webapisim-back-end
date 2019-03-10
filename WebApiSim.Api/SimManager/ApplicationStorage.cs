@@ -1,73 +1,40 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
+using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
+using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore.Internal;
+using Microsoft.Extensions.Logging;
+using Newtonsoft.Json.Linq;
 using WebApiSim.Api.Contracts;
 
 namespace WebApiSim.Api.SimManager
 {
-    #region IApplicationService
-
-    public interface IApplicationService
-    {
-        ApiResponse Clear();
-        ApiResponse<IEnumerable<string>> SelectApplicationIds();
-    }
-
-    public class ApplicationRequest
-    {
-        [Required]
-        [MaxLength(100)]
-        [MinLength(5)]
-        public string ApplicationId { get; set; }
-    }
-
-    #endregion
-
-    #region IResponseService
-
-    public interface IResponseService
-    {
-        ApiResponse AddResponses(AddResponsesRequest request);
-        ApiResponse<IEnumerable<SimResponse>> SelectResponsesByApplicationId(SelectResponsesByApplicationIdRequest request);
-        ApiResponse ClearResponsesByApplicationId(ClearResponsesRequest request);
-    }
-
-    public class AddResponsesRequest : ApplicationRequest
-    {
-        [Required]
-        public SimResponse[] Responses { get; set; }
-    }
-
-    public class SelectResponsesByApplicationIdRequest : ApplicationRequest { }
-    public class ClearResponsesRequest : ApplicationRequest { }
-
-    #endregion
-
-    #region IRuleService
-
-    public interface IRuleService
-    {
-        ApiResponse AddRules(AddRulesRequest request);
-        ApiResponse<IEnumerable<SimRule>> SelectRulesByApplicationId(SelectRulesByApplicationIdRequest request);
-        ApiResponse ClearRulesByApplicationId(ClearRulesByApplicationIdRequest request);
-    }
-
-    public class AddRulesRequest : ApplicationRequest
-    {
-        [Required]
-        public SimRule[] Rules { get; set; }
-    }
-
-    public class SelectRulesByApplicationIdRequest : ApplicationRequest { }
-    public class ClearRulesByApplicationIdRequest : ApplicationRequest { }
-
-    #endregion
-
-    public class ApplicationStorage : IResponseService, IApplicationService, IRuleService
+    public class ApplicationStorage : IResponseService, IApplicationService, IRuleService, IWebApiSimManager
     {
         private readonly object _lock = new object();
         private readonly Dictionary<string, Application> _applications = new Dictionary<string, Application>();
+        private readonly ILogger _applicationLogger;
+
+        private SimResponse CreateDefaultResponse() => new SimResponse
+        {
+            StatusCode = 200,
+            Headers = new KeyValuePair<string, string[]>[] { new KeyValuePair<string, string[]>("simulated-response-type", new string[] { "default-response" }) }
+        };
+
+        private SimResponse CreateApplicationNotFoundResponse() => new SimResponse
+        {
+            StatusCode = 200,
+            Headers = new KeyValuePair<string, string[]>[] { new KeyValuePair<string, string[]>("simulated-response-type", new string[] { "application-not-found" }) }
+        };
+
+        public const string ApiSimRouteToken = "api-sim";
+
+        public ApplicationStorage(ILoggerFactory loggerFactory)
+        {
+            _applicationLogger = loggerFactory.CreateLogger<Application>();
+        }
 
         #region IApplicationStore
 
@@ -171,6 +138,44 @@ namespace WebApiSim.Api.SimManager
 
         #endregion
 
+        #region  IWebApiSimManager
+
+        public async Task<SimResponse> FindRuleByRequestAsync(HttpRequest request)
+        {
+            if (!request.Path.HasValue)
+            {
+                throw new InvalidOperationException("Path must has a value");
+            }
+
+            // url format: /api-sim/{applicationId}/other-values}
+            var pathParts = request.Path.Value.Split('/');
+            var tokenIndex = pathParts.IndexOf(ApiSimRouteToken);
+            if (tokenIndex == -1)
+            {
+                throw new InvalidOperationException($"Path must contain token '{ApiSimRouteToken}'");
+            }
+
+            if (pathParts.Length > tokenIndex + 1)
+            {
+                var applicationId = pathParts[tokenIndex + 1];
+                var applicationFound = TryGetApplicationSafe(applicationId, out Application application);
+                if (!applicationFound)
+                {
+                    return CreateApplicationNotFoundResponse();
+                }
+
+                var responseForApplication = await application.FindResponseByRequestAsync(request);
+                if (responseForApplication != null)
+                {
+                    return responseForApplication;
+                }
+            }
+
+            return CreateDefaultResponse();
+        }
+
+        #endregion
+
         private Application GetOrCreateApplicationSafe(string applicationId)
         {
             Application application;
@@ -178,7 +183,7 @@ namespace WebApiSim.Api.SimManager
             {
                 if (!_applications.TryGetValue(applicationId, out application))
                 {
-                    application = new Application(applicationId);
+                    application = new Application(applicationId, _applicationLogger);
                     _applications.Add(applicationId, application);
                 }
             }
@@ -200,19 +205,21 @@ namespace WebApiSim.Api.SimManager
         private readonly object _lock = new object();
         private readonly Dictionary<Guid, SimResponse> _responses = new Dictionary<Guid, SimResponse>();
         private readonly Dictionary<Guid, SimRule> _rules = new Dictionary<Guid, SimRule>();
+        private readonly ILogger _logger;
 
         public string ApplicationId { get; private set; }
 
-        public Application(string applicationId)
+        public Application(string applicationId, ILogger logger)
         {
             ApplicationId = applicationId;
+            _logger = logger;
         }
 
         public void AddResponses(IEnumerable<SimResponse> responses)
         {
             lock (_lock)
             {
-                foreach(var response in responses)
+                foreach (var response in responses)
                 {
                     _responses[response.ResponseId] = response;
                 }
@@ -274,13 +281,61 @@ namespace WebApiSim.Api.SimManager
                 return _rules.Values.ToArray();
             }
         }
+
+        public async Task<SimResponse> FindResponseByRequestAsync(HttpRequest request)
+        {
+            SimResponse FindResponse(Guid responseId)
+            {
+                if (!_responses.ContainsKey(responseId))
+                {
+                    throw new InvalidOperationException($"Response {responseId} not found");
+                }
+
+                return _responses[responseId];
+            }
+
+            var bodyText = string.Empty;
+            using (var bodyStream = new MemoryStream())
+            {
+                await request.Body.CopyToAsync(bodyStream);
+                bodyStream.Seek(0, SeekOrigin.Begin);
+                bodyText = new StreamReader(bodyStream).ReadToEnd();
+            }
+
+            JObject bodyObject = string.IsNullOrEmpty(bodyText) ? null : JObject.Parse(bodyText);
+
+            lock (_lock)
+            {
+                IEnumerable<SimRule> rules = _rules.Values.Where(rule => string.IsNullOrEmpty(rule.Method) || rule.Method == request.Method);
+                rules = rules
+                    .Where(rule => !rule.Header.HasValue ||
+                        request.Headers.Any(requestHeader => requestHeader.Key == rule.Header.Value.Key && requestHeader.Value.Any(requestHeaderValue => requestHeaderValue == rule.Header.Value.Value)));
+
+                if (bodyObject != null)
+                {
+                    rules = rules.Where(rule => !rule.Property.HasValue ||
+                        bodyObject.ContainsKey(rule.Property.Value.Key) && bodyObject.GetValue(rule.Property.Value.Key).ToString() == rule.Property.Value.Value);
+                }
+
+                switch (rules.Count())
+                {
+                    case 0:
+                        return null;
+                    case 1:
+                        return FindResponse(rules.First().ResponseId);                        
+                    default:
+                        _logger.LogWarning($"More than one rule found. Rules: {string.Join(',', rules.Select(a => a.RuleId))}");
+                        return FindResponse(rules.First().ResponseId);
+                }
+            }
+        }
     }
 
     public class SimResponse
     {
         public Guid ResponseId { get; set; }
         public object Body { get; set; }
-        public int HttpCode { get; set; }
+        public int StatusCode { get; set; }
         public KeyValuePair<string, string[]>[] Headers { get; set; }
     }
 

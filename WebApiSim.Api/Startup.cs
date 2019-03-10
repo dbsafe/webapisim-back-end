@@ -7,7 +7,8 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
 using NLog.Extensions.Logging;
 using Swashbuckle.AspNetCore.Swagger;
-using WebApiSim.Api.LoggingMiddleware;
+using WebApiSim.Api.Middleware.Logging;
+using WebApiSim.Api.Middleware.WebApiSim;
 using WebApiSim.Api.SimManager;
 
 namespace WebApiSim.Api
@@ -15,12 +16,14 @@ namespace WebApiSim.Api
     public class Startup
     {
         private readonly ILogger _logger;
+        private readonly ILoggerFactory _loggerFactory;
         public IConfiguration Configuration { get; }
 
-        public Startup(IConfiguration configuration, ILogger<Startup> logger)
+        public Startup(IConfiguration configuration, ILogger<Startup> logger, ILoggerFactory loggerFactory)
         {
             Configuration = configuration;
             _logger = logger;
+            _loggerFactory = loggerFactory;
         }
 
         // This method gets called by the runtime. Use this method to add services to the container.
@@ -47,7 +50,7 @@ namespace WebApiSim.Api
             });
 
 
-            ConfigureDependencyInjection(services);
+            ConfigureDependencyInjection(services, _loggerFactory);
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -66,6 +69,7 @@ namespace WebApiSim.Api
 
             loggerFactory.AddNLog();
             app.UseRequestResponseLogging();
+            app.UseWebApiSim();
             ConfigureSwagerUi(app);
 
             app.UseMvc();
@@ -89,12 +93,13 @@ namespace WebApiSim.Api
             });
         }
 
-        private void ConfigureDependencyInjection(IServiceCollection services)
+        private void ConfigureDependencyInjection(IServiceCollection services, ILoggerFactory loggerFactory)
         {
-            var applicationStorage = new ApplicationStorage();
+            var applicationStorage = new ApplicationStorage(loggerFactory);
             services.AddSingleton<IApplicationService>(applicationStorage);
             services.AddSingleton<IResponseService>(applicationStorage);
             services.AddSingleton<IRuleService>(applicationStorage);
+            services.AddSingleton<IWebApiSimManager>(applicationStorage);
         }
     }
 }

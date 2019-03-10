@@ -6,7 +6,7 @@ using System.IO;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace WebApiSim.Api.LoggingMiddleware
+namespace WebApiSim.Api.Middleware.Logging
 {
     public static class RequestResponseLoggingMiddlewareExtensions
     {
@@ -24,8 +24,7 @@ namespace WebApiSim.Api.LoggingMiddleware
         public RequestResponseLoggingMiddleware(RequestDelegate next, ILoggerFactory loggerFactory)
         {
             _next = next;
-            _logger = loggerFactory
-                      .CreateLogger<RequestResponseLoggingMiddleware>();
+            _logger = loggerFactory.CreateLogger<RequestResponseLoggingMiddleware>();
         }
 
         public async Task Invoke(HttpContext context)
