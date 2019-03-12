@@ -252,7 +252,7 @@ namespace WebApiSim.Api.SimManager
                     .ToArray();
                 if (responsesNotFound.Length > 0)
                 {
-                    message = $"One or more responses were not found: {string.Join(',', responsesNotFound)}";
+                    message = $"Response(s) not found: {string.Join(',', responsesNotFound)}";
                     return false;
                 }
 
