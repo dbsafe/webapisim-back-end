@@ -1,7 +1,9 @@
 ﻿using System;
+using System.Net;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using WebApiSim.Api.Contracts;
+using WebApiSim.Api.SimManager;
 
 namespace WebApiSim.Api.Controllers
 {
@@ -15,17 +17,22 @@ namespace WebApiSim.Api.Controllers
         }
 
         protected IActionResult Execute<TResult>(Func<TResult> func)
-            where TResult: ApiResponse
+            where TResult : ApiResponse
         {
             try
             {
                 var result = func();
                 return Ok(result);
             }
+            catch (BadRequestException ex)
+            {
+                _logger.LogError($"Exception: {ex.ToString()}");
+                return StatusCode((int)HttpStatusCode.BadRequest, ApiResponse.CreateFailed(ex.Message));
+            }
             catch (Exception ex)
             {
                 _logger.LogError($"Exception: {ex.ToString()}");
-                return StatusCode(500, ApiResponse.CreateFailed("Internal Server Error"));
+                return StatusCode((int)HttpStatusCode.OK, ApiResponse.CreateFailed("Internal Server Error"));
             }
         }
     }

@@ -1,12 +1,12 @@
-﻿using System;
+﻿using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore.Internal;
+using Microsoft.Extensions.Logging;
+using Newtonsoft.Json.Linq;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Http;
-using Microsoft.EntityFrameworkCore.Internal;
-using Microsoft.Extensions.Logging;
-using Newtonsoft.Json.Linq;
 using WebApiSim.Api.Contracts;
 
 namespace WebApiSim.Api.SimManager
@@ -108,7 +108,7 @@ namespace WebApiSim.Api.SimManager
             }
             else
             {
-                return ApiResponse.CreateFailed(message);
+                throw new BadRequestException(message);
             }
         }
 
@@ -306,15 +306,31 @@ namespace WebApiSim.Api.SimManager
 
             lock (_lock)
             {
+                // Filter by method type
                 IEnumerable<SimRule> rules = _rules.Values.Where(rule => string.IsNullOrEmpty(rule.Method) || rule.Method == request.Method);
+
+                // Filter by url
+                rules = rules.Where(rule => string.IsNullOrEmpty(rule.Url) || request.Path.Value.Contains(rule.Url));
+
+                // Filter by parameter
+                rules = rules
+                    .Where(rule => !rule.Parameter.HasValue ||
+                        request.Query.Any(parameter => parameter.Key == rule.Parameter.Value.Key && parameter.Value == rule.Parameter.Value.Value));
+
+                // Filter by header
                 rules = rules
                     .Where(rule => !rule.Header.HasValue ||
                         request.Headers.Any(requestHeader => requestHeader.Key == rule.Header.Value.Key && requestHeader.Value.Any(requestHeaderValue => requestHeaderValue == rule.Header.Value.Value)));
 
+                // Filter by property
                 if (bodyObject != null)
                 {
                     rules = rules.Where(rule => !rule.Property.HasValue ||
                         bodyObject.ContainsKey(rule.Property.Value.Key) && bodyObject.GetValue(rule.Property.Value.Key).ToString() == rule.Property.Value.Value);
+                }
+                else
+                {
+                    rules = rules.Where(rule => !rule.Property.HasValue);
                 }
 
                 switch (rules.Count())
@@ -322,7 +338,7 @@ namespace WebApiSim.Api.SimManager
                     case 0:
                         return null;
                     case 1:
-                        return FindResponse(rules.First().ResponseId);                        
+                        return FindResponse(rules.First().ResponseId);
                     default:
                         _logger.LogWarning($"More than one rule found. Rules: {string.Join(',', rules.Select(a => a.RuleId))}");
                         return FindResponse(rules.First().ResponseId);
@@ -344,7 +360,14 @@ namespace WebApiSim.Api.SimManager
         public Guid RuleId { get; set; }
         public Guid ResponseId { get; set; }
         public string Method { get; set; }
+        public string Url { get; set; }
         public KeyValuePair<string, string>? Header { get; set; }
         public KeyValuePair<string, string>? Property { get; set; }
+        public KeyValuePair<string, string>? Parameter { get; set; }
     }
+
+    public class BadRequestException : Exception
+    {
+        public BadRequestException(string message) : base(message) { }
+    };
 }
