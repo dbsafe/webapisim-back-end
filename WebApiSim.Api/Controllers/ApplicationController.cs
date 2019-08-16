@@ -23,9 +23,21 @@ namespace WebApiSim.Api.Controllers
         }
 
         [HttpPost("clear")]
-        public IActionResult Clear()
+        public IActionResult DeleteAllApplications()
         {
-            return Execute(() => _applicationService.Clear());
+            return Execute(() => _applicationService.DeleteAllApplications());
+        }
+
+        [HttpPost("clear/{applicationId}")]
+        public IActionResult DeleteApplication([FromRoute] string applicationId)
+        {
+            return Execute(() => _applicationService.DeleteApplication(applicationId));
+        }
+
+        [HttpPost("load")]
+        public IActionResult Load(LoadRequest request)
+        {
+            return Execute(() => _applicationService.Load(request));
         }
     }
 }

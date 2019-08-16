@@ -36,13 +36,29 @@ namespace WebApiSim.Api.SimManager
             _applicationLogger = loggerFactory.CreateLogger<Application>();
         }
 
-        #region IApplicationStore
+        #region IApplicationService
 
-        public ApiResponse Clear()
+        public ApiResponse DeleteAllApplications()
         {
             lock (_lock)
             {
                 _applications.Clear();
+            }
+
+            return ApiResponse.CreateSucceed();
+        }
+
+        public ApiResponse DeleteApplication(string applicationId)
+        {
+            bool removed;
+            lock (_lock)
+            {
+                removed = _applications.Remove(applicationId);
+            }
+
+            if (!removed)
+            {
+                _applicationLogger.LogWarning($"ApplicationId '{applicationId}' not found");
             }
 
             return ApiResponse.CreateSucceed();
@@ -57,6 +73,25 @@ namespace WebApiSim.Api.SimManager
             }
 
             return ApiResponse<IEnumerable<string>>.CreateSucceed(applications);
+        }
+
+        public ApiResponse Load(LoadRequest request)
+        {
+            lock (_lock)
+            {
+                // Remove application with rules and responses if exists
+                _applications.Remove(request.ApplicationId);
+
+                // Get a new application
+                var application = GetOrCreateApplicationUnsafe(request.ApplicationId);
+
+                foreach (var ruleWithResponse in request.RuleWithResponses)
+                {
+                    LoadRuleWithResponseUnsafe(ruleWithResponse, application);
+                }
+            }
+
+            return ApiResponse.CreateSucceed();
         }
 
         #endregion
@@ -176,16 +211,56 @@ namespace WebApiSim.Api.SimManager
 
         #endregion
 
+        private void LoadRuleWithResponseUnsafe(RuleWithResponse ruleWithResponse, Application application)
+        {
+            var simResponse = MapLoadResponse(ruleWithResponse.Response);
+            simResponse.ResponseId = Guid.NewGuid();
+
+            application.AddResponses(new SimResponse[] { simResponse });
+
+            var simRule = MapLoadRule(ruleWithResponse.Rule);
+            simRule.RuleId = Guid.NewGuid();
+            simRule.ResponseId = simResponse.ResponseId;
+            application.AddRules(new SimRule[] { simRule }, out _);
+        }
+
+        private SimResponse MapLoadResponse(LoadResponse response)
+        {
+            return new SimResponse
+            {
+                Body = response.Body,
+                Headers = response.Headers,
+                StatusCode = response.StatusCode
+            };
+        }
+
+        private SimRule MapLoadRule(LoadRule rule)
+        {
+            return new SimRule
+            {
+                Header = rule.Header,
+                Method = rule.Method,
+                Parameter = rule.Parameter,
+                Property = rule.Property,
+                Url = rule.Url                
+            };
+        }
+
         private Application GetOrCreateApplicationSafe(string applicationId)
         {
-            Application application;
             lock (_lock)
             {
-                if (!_applications.TryGetValue(applicationId, out application))
-                {
-                    application = new Application(applicationId, _applicationLogger);
-                    _applications.Add(applicationId, application);
-                }
+                return GetOrCreateApplicationUnsafe(applicationId);
+            }
+        }
+
+        private Application GetOrCreateApplicationUnsafe(string applicationId)
+        {
+            Application application;
+            if (!_applications.TryGetValue(applicationId, out application))
+            {
+                application = new Application(applicationId, _applicationLogger);
+                _applications.Add(applicationId, application);
             }
 
             return application;
