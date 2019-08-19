@@ -1,4 +1,4 @@
-﻿namespace WebApiSim.Api.Contracts
+﻿namespace WebApiSim.Domain.Contracts
 {
     public enum ApiResponseType
     {

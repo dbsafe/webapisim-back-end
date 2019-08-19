@@ -7,7 +7,8 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using WebApiSim.Api.Contracts;
+using WebApiSim.Domain.Contracts;
+using WebApiSim.Domain.Models;
 
 namespace WebApiSim.Api.SimManager
 {

@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
-using WebApiSim.Api.Contracts;
+using WebApiSim.Domain.Contracts;
 
 namespace WebApiSim.Api.SimManager
 {

@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using WebApiSim.Api.SimManager;
+using WebApiSim.Domain.Models;
 
 namespace WebApiSim.Api.Controllers
 {
