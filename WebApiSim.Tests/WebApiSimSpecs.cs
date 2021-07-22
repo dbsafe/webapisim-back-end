@@ -8,8 +8,9 @@ using WebApiSim.Loader;
 namespace WebApiSim.Tests
 {
     [Binding]
-    [Scope(Feature = "ApplicationController")]
     [Scope(Feature = "AppSimLogic")]
+    [Scope(Feature = "ApplicationController")]
+    [Scope(Feature = "ResponseController")]
     public class WebApiSimSpecs : WebApiSpecs
     {
         private static readonly WebApiSpecsConfig _config = new WebApiSpecsConfig
