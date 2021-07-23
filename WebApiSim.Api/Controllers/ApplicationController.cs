@@ -9,7 +9,7 @@ namespace WebApiSim.Api.Controllers
     [ApiController]
     public class ApplicationController : AppSimController<ApplicationController>
     {
-        private IApplicationService _applicationService;
+        private readonly IApplicationService _applicationService;
 
         public ApplicationController(ILogger<ApplicationController> logger, IApplicationService applicationService)
             : base(logger)

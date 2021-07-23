@@ -257,8 +257,7 @@ namespace WebApiSim.Api.SimManager
 
         private Application GetOrCreateApplicationUnsafe(string applicationId)
         {
-            Application application;
-            if (!_applications.TryGetValue(applicationId, out application))
+            if (!_applications.TryGetValue(applicationId, out Application application))
             {
                 application = new Application(applicationId, _applicationLogger);
                 _applications.Add(applicationId, application);
